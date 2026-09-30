@@ -1,44 +1,37 @@
 """Export the brand kit into <out>/ ."""
 import os, sys
 import cairosvg
-import mark, draw, construction
+import mark3, draw3
 
 OUT = sys.argv[1]
 os.makedirs(OUT, exist_ok=True)
-BOLD = dict(C=(30.0, 230.0), S=25.0, P=19.0, D=14.0, NH=5, NS=3, GAP=1.5)
+BOLD = dict(P=17.0, D=12.5, NH=5, NS=4, SS=17.0)
 
 
-def save(m, name, mode, bg, vb, png_w, svg=True):
-    s = draw.svg(m, mode, bg, vb=vb)
+def save(m, name, mode, bg, vb, w, svg=True):
+    s = draw3.svg(m, mode, bg, vb=vb)
     if svg:
         open(f'{OUT}/{name}.svg', 'w').write(s)
-    cairosvg.svg2png(bytestring=s.encode(), write_to=f'{OUT}/{name}.png', output_width=png_w)
+    cairosvg.svg2png(bytestring=s.encode(), write_to=f'{OUT}/{name}.png', output_width=w)
 
 
-m = mark.build()
-vb = draw.view(m)
-save(m, 's-mark', 'gradient', None, vb, 4096)
-save(m, 's-mark-flat', 'flat', None, vb, 4096)
-save(m, 's-mark-on-dark', 'gradient', draw.DARK, vb, 4096)
-save(m, 's-mark-on-light', 'onlight', '#F4F1EC', vb, 4096)
-save(m, 's-mark-white', 'white', None, vb, 4096)
-save(m, 's-mark-black', 'black', None, vb, 4096)
-
-lo, hi = draw.bounds(m)
+m = mark3.build()
+vb = draw3.view(m)
+for name, mode, bg in (('s-mark', 'gradient', None), ('s-mark-flat', 'flat', None),
+                       ('s-mark-on-dark', 'gradient', draw3.DARK), ('s-mark-on-light', 'onlight', '#F4F1EC'),
+                       ('s-mark-white', 'white', None), ('s-mark-black', 'black', None)):
+    save(m, name, mode, bg, vb, 4096)
+lo, hi = draw3.bounds(m)
 H = (hi[1] - lo[1]) / 0.58
 W = H * 1.6
 c = (lo + hi) / 2
-save(m, 'showcase', 'gradient', draw.DARK, (c[0] - W / 2, -c[1] - H / 2, W, H), 3200, svg=False)
+save(m, 'showcase', 'gradient', draw3.DARK, (c[0] - W / 2, c[1] - H / 2, W, H), 3200, svg=False)
 
-s = construction.build_sheet()
-cairosvg.svg2png(bytestring=s.encode(), write_to=f'{OUT}/construction.png', output_width=2400)
-
-p = dict(mark.P); p.update(BOLD)
-mb = mark.build(p)
-vbs = draw.view(mb, pad=0.12, square=True)
+p = dict(mark3.P); p.update(BOLD)
+mb = mark3.build(p)
+vbs = draw3.view(mb, 0.12, True)
 save(mb, 's-mark-bold', 'gradient', None, vbs, 2048)
-save(mb, 's-mark-bold-app-icon', 'gradient', draw.DARK, vbs, 1024)
+save(mb, 's-mark-bold-app-icon', 'gradient', draw3.DARK, vbs, 1024)
 for w in (512, 180, 64):
-    cairosvg.svg2png(bytestring=draw.svg(mb, 'gradient', draw.DARK, vb=vbs).encode(),
+    cairosvg.svg2png(bytestring=draw3.svg(mb, 'gradient', draw3.DARK, vb=vbs).encode(),
                      write_to=f'{OUT}/s-mark-bold-{w}.png', output_width=w)
-print('ok')
