@@ -5,7 +5,7 @@ import mark3, draw3
 
 OUT = sys.argv[1]
 os.makedirs(OUT, exist_ok=True)
-BOLD = dict(P=17.0, D=12.5, NH=5, NS=4, SS=17.0)
+BOLD = dict(P=14.0, D=11.0, NH=5, NS=5, PS=13.0, DS=10.5)
 
 
 def save(m, name, mode, bg, vb, w, svg=True):
