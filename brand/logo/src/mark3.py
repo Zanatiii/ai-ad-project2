@@ -3,6 +3,7 @@
 Coordinates: origin at the centre of rotation, y down, units = px of the 2000px reference.
 Teal half = copper half rotated 180 deg.
 """
+import math
 import sys
 import os
 import numpy as np
@@ -11,24 +12,26 @@ from shapely.geometry import LineString, Polygon
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import logo  # noqa: E402  (traced curves + geometry helpers)
-from logo import smooth, arclen, resample, right_normals  # noqa: E402
+from logo import smooth, arclen, resample, right_normals, catmull  # noqa: E402
 
 P = dict(
     P=11.5,          # dot pitch along a line
     D=8.4,           # dot diameter
     SH=16.0,         # hook line spacing
     NH=8,            # hook lines
-    SS=11.5,         # spine line spacing
-    NS=6,            # spine lines
+    SS=12.0,         # spine line spacing
+    NS=7,            # spine lines
     CUT=30.0,        # hook ends sit on the line CUT px from the slash
     TAPER=0.5,       # hook tails shrink to this dot scale
     HEAD=(1.1, 1.2, 1.3),           # dot growth into the hook ends at the centre
     APEX=(1.1, 1.2, 1.3),           # dot growth into the chevron corners
-    HORN=250.0,      # length of the crescent horn along the arm
+    HORN=160.0,      # length of the crescent horn along the arm
     CRES=(125.0, 265.0),              # crescent: solid horn until ua, tapered away by ub
-    NECK=190.0,      # leg narrowing length
-    BLADE_W=20.0,    # blade width scale
-    BLADE_AT=95.0,   # blade becomes solid this far down the leg (from the apex)
+    NECK=220.0,      # leg narrowing length
+    BLADE_W=30.0,    # blade width scale
+    BLADE_AT=240.0,
+    BLADE_IN=18.0,
+    LEG_MIN=0.8,     # leg dots never shrink below this scale   # blade starts this far past the corner on the slash side   # blade becomes solid this far down the leg (from the apex)
 )
 
 
@@ -141,8 +144,12 @@ def spine(p=P):
     r = p['D'] / 2
     clear = p['P'] - p['D']
     W0 = ribbon_w(p)
-    lune = Polygon(crescent(arm, sa, p))
-    block = lune.buffer(r + clear, quad_segs=32)
+    # crescent traced from the original: outer edge, then inner edge back to the tip
+    co = [(-160, -257), (-184, -212), (-199, -168), (-206, -122), (-202, -78), (-186, -38), (-152, -2)]
+    ci = [(-152, -2), (-166, -42), (-173, -84), (-173, -128), (-169, -174), (-164, -218), (-160, -257)]
+    lune = Polygon(np.vstack([catmull(co, 200), catmull(ci, 200)[1:-1]]))
+    left = Polygon(np.vstack([catmull(co, 200), [(-600, 60), (-600, -400)]]))
+    block = lune.buffer(r * 0.25, quad_segs=32)
     # the horn outline: lines only exist where the ribbon has grown wide enough
     N = right_normals(arm)
     Wh = W0 * smooth(sa / p['HORN'])
@@ -154,7 +161,7 @@ def spine(p=P):
         line, u, ic = logo.offset_line(arm, leg, sa, sl, Lc, Lt, f, line_w(p))
         # arm: from the top down to the chevron corner, split around the crescent
         armline = line[:ic + 1]
-        rest = LineString(armline).intersection(outline).difference(block)
+        rest = LineString(armline).intersection(outline).difference(block).difference(left)
         parts = [g for g in getattr(rest, 'geoms', [rest]) if not g.is_empty and g.length > 1.5 * p['P']]
         for k, g in enumerate(parts):
             pts = fit_dots(np.asarray(g.coords), p['P'])
@@ -167,30 +174,38 @@ def spine(p=P):
         # leg: from the corner toward the blade, dots scale with the converging width
         legline, ul = line[ic:], u[ic:]
         ls = arclen(legline)
-        end_s = np.interp(u_blade, ul, ls)
+        end_s = np.interp(Lc + p['BLADE_IN'] + (p['BLADE_AT'] - p['BLADE_IN']) * f, ul, ls)
         pos, cur = [], 0.0
         while True:
-            w = float(leg_width(np.interp(cur, ls, ul), Lc, Lt, p)) / W0
+            w = max(p['LEG_MIN'], float(leg_width(np.interp(cur, ls, ul), Lc, Lt, p)) / W0)
             cur += p['P'] * w
             if cur - (r + clear) * w >= end_s:
                 break
             pos.append(cur)
         if not pos:
             continue
-        w_last = float(leg_width(np.interp(pos[-1], ls, ul), Lc, Lt, p)) / W0
+        w_last = max(p['LEG_MIN'], float(leg_width(np.interp(pos[-1], ls, ul), Lc, Lt, p)) / W0)
         target = end_s - (r + clear) * w_last
         pos = np.array(pos) * target / pos[-1]
         ramp = list(p['APEX'][::-1][1:])                # mirror the arm's growth out of the corner
         for i, s_ in enumerate(pos):
             uu = np.interp(s_, ls, ul)
-            w = float(leg_width(uu, Lc, Lt, p)) / W0
+            w = max(p['LEG_MIN'], float(leg_width(uu, Lc, Lt, p)) / W0)
             x, y = np.interp(s_, ls, legline[:, 0]), np.interp(s_, ls, legline[:, 1])
             g = ramp[i] if i < len(ramp) else 1.0
             dots.append((x, y, r * w * g))
     # blade: ribbon outline from the blade cut to the tip
     E, uE, _ = logo.offset_line(arm, leg, sa, sl, Lc, Lt, 0.0, line_w(p))
     Ou, uO, _ = logo.offset_line(arm, leg, sa, sl, Lc, Lt, 1.0, line_w(p))
-    blade = np.vstack([E[uE >= u_blade], Ou[uO >= u_blade][::-1]])
+    fs = np.linspace(0, 1, 30)
+    cut = []
+    for ff in fs:
+        ln, uu, _ = logo.offset_line(arm, leg, sa, sl, Lc, Lt, ff, line_w(p))
+        uc = Lc + p['BLADE_IN'] + (p['BLADE_AT'] - p['BLADE_IN']) * ff
+        cut.append([np.interp(uc, uu, ln[:, 0]), np.interp(uc, uu, ln[:, 1])])
+    cut = np.array(cut)
+    u_in = Lc + p['BLADE_IN']
+    blade = np.vstack([E[uE >= u_in][::-1], cut, Ou[uO >= p['BLADE_AT'] + Lc]])
     return dots, [np.asarray(lune.exterior.coords), blade]
 
 
