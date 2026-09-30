@@ -3,7 +3,6 @@
 Coordinates: origin at the centre of rotation, y down, units = px of the 2000px reference.
 Teal half = copper half rotated 180 deg.
 """
-import math
 import sys
 import os
 import numpy as np
@@ -154,7 +153,6 @@ def spine(p=P):
     N = right_normals(arm)
     Wh = W0 * smooth(sa / p['HORN'])
     outline = Polygon(np.vstack([arm, (arm + N * Wh[:, None])[::-1]])).buffer(0.5)
-    u_blade = Lc + p['BLADE_AT']
     dots = []
     for j in range(p['NS']):
         f = (j + 0.5) / p['NS']
