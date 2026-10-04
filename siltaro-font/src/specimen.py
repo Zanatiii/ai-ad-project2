@@ -76,3 +76,38 @@ def phase1(gl, out):
         oy += h
     svg = f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{total}">{"".join(parts)}</svg>'
     cairosvg.svg2png(bytestring=svg.encode(), write_to=out)
+
+
+def preview(gl, out):
+    """Trial specimen: full alphabet, figures, punctuation and sample headlines."""
+    W = 3000
+    rows = [
+        ('ABCDEFGHIJKLM', 190, {}, 10, ''),
+        ('NOPQRSTUVWXYZ', 190, {}, 10, ''),
+        ('0123456789', 150, {}, 10, ''),
+        ('. , : ; - ! ? \' " / ( )', 150, {}, 10, ''),
+        ('SILTARO', 300, {'R': 'R.ss01'}, 40, 'ss01'),
+        ('THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG.', 82, {}, 6, ''),
+        ('SPHINX OF BLACK QUARTZ, JUDGE MY VOW!', 82, {}, 6, ''),
+        ('SMART SYSTEMS. REAL RESULTS.', 120, {}, 10, ''),
+        ('AI-POWERED AUTOMATION FOR MODERN BUSINESS (2026)', 70, {}, 6, ''),
+    ]
+    gaps = [70, 130, 120, 160, 190, 60, 130, 110, 0]
+    panels = []
+    for bg, fg, mute in (('#FFFFFF', '#000000', '#9aa0a6'), ('#0B0D0F', '#E6E8EB', '#5b6168')):
+        y, body = 170, []
+        for (t, size, alt, trk, lab), gp in zip(rows, gaps):
+            y += size * 0.7
+            x = (W - width(gl, t, size, alt, trk)) / 2
+            body.append(text_svg(gl, t, size, x, y, fg, alt, trk))
+            if lab:
+                body.append(f'<text x="80" y="{y}" font-family="DejaVu Sans" font-size="26" fill="{mute}">{lab}</text>')
+            y += gp + (size * 0.25 if alt else 0)
+        panels.append((bg, ''.join(body), int(y + 170)))
+    total = sum(h for _, _, h in panels)
+    parts, oy = [], 0
+    for bg, body, h in panels:
+        parts.append(f'<g transform="translate(0,{oy})"><rect width="{W}" height="{h}" fill="{bg}"/>{body}</g>')
+        oy += h
+    svg = f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{total}">{"".join(parts)}</svg>'
+    cairosvg.svg2png(bytestring=svg.encode(), write_to=out)

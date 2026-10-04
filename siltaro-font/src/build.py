@@ -3,7 +3,6 @@
 Usage:  python3 build.py [--phase1]
 """
 import os
-import sys
 
 from fontTools.fontBuilder import FontBuilder
 from fontTools.pens.cu2quPen import Cu2QuPen
@@ -26,6 +25,13 @@ KERN = {
     ('L', 'Y'): -90, ('L', 'V'): -80, ('Y', 'O'): -25, ('W', 'O'): -15, ('O', 'W'): -15, ('O', 'Y'): -25,
     ('T', 'period'): -80, ('Y', 'period'): -80, ('V', 'period'): -70, ('W', 'period'): -50,
     ('R', 'T'): -20, ('R', 'V'): -20, ('P', 'A'): -50, ('F', 'A'): -50, ('T', 'L'): 0,
+    ('T', 'comma'): -80, ('Y', 'comma'): -80, ('V', 'comma'): -70, ('W', 'comma'): -50,
+    ('F', 'period'): -60, ('F', 'comma'): -60, ('P', 'period'): -60, ('P', 'comma'): -60,
+    ('L', 'quotesingle'): -60, ('L', 'quotedbl'): -60, ('A', 'quotesingle'): -40, ('A', 'quotedbl'): -40,
+    ('T', 'C'): -15, ('T', 'G'): -15, ('T', 'Q'): -20, ('C', 'T'): -15, ('O', 'T'): -20, ('O', 'V'): -20,
+    ('V', 'O'): -20, ('O', 'A'): -20, ('A', 'O'): -15, ('D', 'A'): -25, ('A', 'C'): -15, ('A', 'G'): -15,
+    ('L', 'O'): -20, ('K', 'O'): -25, ('X', 'O'): -20, ('Y', 'C'): -25, ('Y', 'G'): -25,
+    ('F', 'O'): -10, ('P', 'J'): -40, ('T', 'J'): -60, ('A', 'U'): -10, ('U', 'A'): -15,
 }
 
 
@@ -70,7 +76,6 @@ def build_font(W, style, outdir, names=None):
     metrics['.notdef'] = (500, 50)
     charstrings, ttglyphs = {}, {}
     from geom import rect
-    notdef = rect(50, 0, 450, CAP_) if False else None
     for n in order:
         p = gl[n]['path'] if n in gl else None
         adv = metrics[n][0]

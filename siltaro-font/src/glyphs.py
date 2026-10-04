@@ -6,7 +6,7 @@ are added at build time. All numbers are design decisions made for this typeface
 import math
 
 from geom import (Skel, band, ellipse, fillet, foot_slice, hermite_side, inter, line, poly, rect,
-                  ring, slash_cut, translate, union)
+                  ring, translate, union)
 import pathops
 
 CAP = 700
@@ -306,7 +306,6 @@ def zero(m):
     w = 520
     r = (w - m.W) / 2
     yt, yb = CAP + m.os - m.h - r, -m.os + m.h + r
-    s = Skel().move(m.h, yb).line(m.h, yt).arc(w / 2, yt, r, r, 180, 0).line(w - m.h, yb).arc(w / 2, yb, r, r, 0, -180)
     outer = Skel().move(0, yb).line(0, yt).arc(w / 2, yt, r + m.h, r + m.h, 180, 0).line(w, yb).arc(w / 2, yb, r + m.h, r + m.h, 0, -180)
     inner = Skel().move(m.W, yb).line(m.W, yt).arc(w / 2, yt, r - m.h, r - m.h, 180, 0).line(w - m.W, yb).arc(w / 2, yb, r - m.h, r - m.h, 0, -180)
     outer.p.close()
@@ -427,3 +426,145 @@ def period(m):
 @glyph('space', 0x20)
 def space(m):
     return pathops.Path(), 0, 0, 250
+
+
+# ------------------------------------------------------------------ remaining capitals
+@glyph('D', 0x44)
+def D_(m):
+    b, _ = bowl(m, m.h, m.top, m.bot, 650)
+    p = union(rect(0, 0, m.W, CAP), b, fillet(m.W, CAP - m.W, 1, -1, m.r), fillet(m.W, m.W, 1, 1, m.r))
+    return p, SB_STRAIGHT, SB_ROUND
+
+
+@glyph('J', 0x4A)
+def J_(m):
+    w = 500
+    r = (w - m.W) / 2
+    yc = -m.os + m.h + r
+    s = Skel().move(w - m.h, CAP).line(w - m.h, yc).arc(w / 2, yc, r, r, 0, -165)
+    return s.stroke(m.W), 30, SB_STRAIGHT
+
+
+@glyph('M', 0x4D)
+def M_(m):
+    """Vertical stems with a full-depth V whose point overshoots the baseline."""
+    w = 780
+    half = math.atan2(w / 2 - m.W, CAP)
+    tip = m.h / math.sin(half)
+    v = Skel().move(m.h, CAP + 200).line(w / 2, -m.os + tip).line(w - m.h, CAP + 200).stroke(m.W, miter=80)
+    p = union(rect(0, 0, m.W, CAP), rect(w - m.W, 0, w, CAP), band(v, -m.os, CAP))
+    p = inter(p, rect(0, -m.os, w, CAP))
+    return p, SB_STRAIGHT, SB_STRAIGHT
+
+
+@glyph('Q', 0x51)
+def Q_(m):
+    R, rs, cy = o_metrics(m)
+    tail = band(line(R + 70, 230, 2 * R + 120, -160, m.W), -m.os - 60, 300)
+    p = union(ring(R, cy, rs, rs, m.W), tail)
+    p = band(p, -60, CAP + m.os)
+    p = foot_slice_at(p, -60)                 # '\' tail, sliced like every '\' foot
+    return p, SB_ROUND, SB_ROUND
+
+
+def foot_slice_at(p, y):
+    """foot_slice for a leg that ends on a line other than the baseline."""
+    from geom import translate as tr
+    q = tr(p, 0, -y)
+    from geom import foot_slice
+    return tr(foot_slice(q, SLASH), 0, y)
+
+
+@glyph('X', 0x58)
+def X_(m):
+    w = 640
+    a = line(-20, -60, w + 20, CAP + 60, m.W)
+    b = line(-20, CAP + 60, w + 20, -60, m.W)
+    p = inter(union(a, b), rect(0, 0, w, CAP))
+    p = foot_slice(p, SLASH)
+    return p, SB_DIAG, SB_DIAG
+
+
+@glyph('Z', 0x5A)
+def Z_(m):
+    w = 580
+    s = Skel().move(0, m.top).line(w - 40, m.top).line(40, m.bot).line(w, m.bot)
+    return cap(s.stroke(m.W, miter=8)), 36, 36
+
+
+# ------------------------------------------------------------------ punctuation
+def dot(m, x=0, y=0):
+    return rect(x, y, x + m.W, y + m.W)
+
+
+@glyph('comma', 0x2C)
+def comma(m):
+    p = union(dot(m), poly((0, 0), (m.W, 0), (m.W - 40, -150), (-60, -150)))
+    return translate(p, 60), 0, 60
+
+
+@glyph('colon', 0x3A)
+def colon(m):
+    return union(dot(m), dot(m, 0, 470)), 60, 60
+
+
+@glyph('semicolon', 0x3B)
+def semicolon(m):
+    p = union(dot(m), poly((0, 0), (m.W, 0), (m.W - 40, -150), (-60, -150)), dot(m, 0, 470))
+    return translate(p, 60), 0, 60
+
+
+@glyph('hyphen', 0x2D)
+def hyphen(m):
+    return rect(0, 310 - m.h, 300, 310 + m.h), 50, 50
+
+
+@glyph('exclam', 0x21)
+def exclam(m):
+    return union(dot(m), rect(0, m.W + 90, m.W, CAP)), 70, 70
+
+
+@glyph('question', 0x3F)
+def question(m):
+    r = 180
+    cx, cy = r + m.h, CAP + m.os - m.h - r
+    s = Skel().arc(cx, cy, r, r, 160, -90).line(cx, m.W + 140)
+    return union(s.stroke(m.W), dot(m, cx - m.h, 0)), SB_ROUND, SB_ROUND
+
+
+@glyph('quotesingle', 0x27)
+def quotesingle(m):
+    return rect(0, CAP - 230, m.W, CAP), 70, 70
+
+
+@glyph('quotedbl', 0x22)
+def quotedbl(m):
+    return union(rect(0, CAP - 230, m.W, CAP), rect(m.W + 70, CAP - 230, 2 * m.W + 70, CAP)), 70, 70
+
+
+@glyph('slash', 0x2F)
+def slash(m):
+    """The brand slash itself, at the brand angle."""
+    h = CAP + 100
+    w = h / math.tan(math.radians(SLASH))
+    p = inter(line(0, -50, w, h - 50, m.W), rect(-200, -50, w + 200, CAP + 50))
+    b = p.bounds
+    return translate(p, -b[0]), 20, 20
+
+
+def paren(m, left=True):
+    R, a = 520, 42
+    s = Skel().arc(R + m.h, 325, R, R, 180 - a, 180 + a) if left else Skel().arc(-R + m.h, 325, R, R, a, -a)
+    p = s.stroke(m.W)
+    b = p.bounds
+    return translate(p, -b[0])
+
+
+@glyph('parenleft', 0x28)
+def parenleft(m):
+    return paren(m, True), 60, 30
+
+
+@glyph('parenright', 0x29)
+def parenright(m):
+    return paren(m, False), 30, 60
