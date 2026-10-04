@@ -5,7 +5,7 @@ are added at build time. All numbers are design decisions made for this typeface
 """
 import math
 
-from geom import (Skel, band, ellipse, fillet, hermite_side, inter, line, poly, rect,
+from geom import (Skel, band, ellipse, fillet, foot_slice, hermite_side, inter, line, poly, rect,
                   ring, slash_cut, translate, union)
 import pathops
 
@@ -47,7 +47,7 @@ def I_(m):
 
 @glyph('L', 0x4C)
 def L_(m):
-    w = 470
+    w = 500
     p = Skel().move(m.h, CAP).line(m.h, m.bot).line(w, m.bot).stroke(m.W)
     p = union(cap(p), fillet(m.W, m.W, 1, 1, m.r))
     return p, SB_STRAIGHT, 20
@@ -62,7 +62,7 @@ def T_(m):
 
 @glyph('E', 0x45)
 def E_(m):
-    w = 500
+    w = 540
     p = Skel().move(w, m.top).line(m.h, m.top).line(m.h, m.bot).line(w, m.bot).stroke(m.W)
     p = union(p, rect(m.W - 1, 350 - m.h, w - 40, 350 + m.h),
               fillet(m.W, CAP - m.W, 1, -1, m.r), fillet(m.W, m.W, 1, 1, m.r))
@@ -71,7 +71,7 @@ def E_(m):
 
 @glyph('F', 0x46)
 def F_(m):
-    w = 490
+    w = 525
     p = Skel().move(w, m.top).line(m.h, m.top).line(m.h, -10).stroke(m.W)
     p = union(cap(p), rect(m.W - 1, 340 - m.h, w - 50, 340 + m.h), fillet(m.W, CAP - m.W, 1, -1, m.r))
     return p, SB_STRAIGHT, 30
@@ -99,42 +99,54 @@ def K_(m):
     arms = Skel().move(w - 30, CAP + 60).line(m.W - 10, j).line(w + 30, -60).stroke(m.W)
     p = cap(union(rect(0, 0, m.W, CAP), arms))
     p = inter(p, rect(0, 0, w, CAP))
-    p = slash_cut(p, w - 70, 0, SLASH)        # the lower leg is a '\' landing on the baseline
+    p = foot_slice(p, SLASH)                  # the lower leg is a '\' landing on the baseline
     return p, SB_STRAIGHT, SB_DIAG
 
 
 # ------------------------------------------------------------------ diagonal letters
-def chevron(m, w, up=True):
-    """Λ (up) or V (down): two legs meeting in a flat-cut apex."""
-    a = 0
+def chevron(m, w, up=True, pointed=True):
+    """Λ (up) or V (down): two legs meeting in an apex.
+    pointed: the outer miter is the apex, overshooting the cap height like a round form."""
+    half = math.atan2(w / 2, CAP)                       # half-angle of the apex
+    tip = m.h / math.sin(half)                          # outer miter beyond the skeleton apex
     if up:
-        s = Skel().move(a, -60).line(w / 2, CAP + 140).line(w - a, -60)
+        ya = CAP + m.os - tip if pointed else CAP + 140
+        s = Skel().move(0, -60).line(w / 2, ya).line(w, -60)
+        p = band(s.stroke(m.W, miter=80), 0, CAP + m.os if pointed else CAP)
     else:
-        s = Skel().move(a, CAP + 60).line(w / 2, -140).line(w - a, CAP + 60)
-    p = cap(s.stroke(m.W, miter=50))
+        ya = -m.os + tip if pointed else -140
+        s = Skel().move(0, CAP + 60).line(w / 2, ya).line(w, CAP + 60)
+        p = band(s.stroke(m.W, miter=80), -m.os if pointed else 0, CAP)
     b = p.bounds
     return translate(p, -b[0]), b[2] - b[0]
 
 
 @glyph('A', 0x41)
 def A_(m):
-    p, w = chevron(m, 640, up=True)
-    # the right leg is a '\' landing on the baseline: sliced by the brand slash
-    p = slash_cut(p, w - 50, 0, SLASH)
+    p, w = chevron(m, 660, up=True)
+    # the right leg is a '\' landing on the baseline: sliced clean through by the brand slash
+    p = foot_slice(p, SLASH)
     return p, SB_DIAG, SB_DIAG
 
 
 @glyph('V', 0x56)
 def V_(m):
-    p, w = chevron(m, 640, up=False)
+    p, w = chevron(m, 660, up=False)
     return p, SB_DIAG, SB_DIAG
 
 
 @glyph('W', 0x57)
 def W_(m):
-    w, x1, x2 = 900, 225, 675
-    s = Skel().move(0, CAP + 60).line(x1, -150).line(w / 2, CAP + 150).line(x2, -150).line(w, CAP + 60)
-    p = cap(s.stroke(m.W, miter=50))
+    """Two chevrons sharing a pointed middle apex; all vertices overshoot like the A and V."""
+    w = 920
+    q = w / 4
+    half = math.atan2(q, CAP)                     # each leg spans one quarter of the width
+    tip = m.h / math.sin(half)
+    lo, hi = -m.os + tip, CAP + m.os - tip
+    s = Skel().move(-q / 2, CAP + CAP / 2).line(q, lo).line(2 * q, hi).line(3 * q, lo).line(4 * q + q / 2, CAP + CAP / 2)
+    p = band(s.stroke(m.W, miter=80), -m.os, CAP + m.os)
+    # outer arms end flat at the cap height; only the middle apex overshoots
+    p = inter(p, union(rect(-500, -100, 2000, CAP), rect(2 * q - 150, CAP - 10, 2 * q + 150, CAP + 100)))
     b = p.bounds
     return translate(p, -b[0]), SB_DIAG, SB_DIAG
 
@@ -169,9 +181,14 @@ def C_(m):
 @glyph('G', 0x47)
 def G_(m):
     R, rs, cy = o_metrics(m)
-    arc = ring(R, cy, rs, rs, m.W, 42, 360)
-    bar = rect(R + 40, cy - m.W, 2 * R, cy)
-    return union(arc, bar), SB_ROUND, SB_ROUND
+    arc = ring(R, cy, rs, rs, m.W, 42, 380)             # runs past 0 deg into the bar ...
+    bar = rect(R + 30, cy - m.h, 2 * R, cy + m.h)       # ... a bar centred on the centre line
+    p = union(arc, bar)
+    # ... and is trimmed flush with the bar's top edge
+    p = inter(p, union(rect(-100, -100, 2 * R + 100, cy + m.h), rect(-100, cy + 140, 2 * R + 100, 900),
+                       rect(-100, -100, R + 30, 900)))
+    p = inter(p, ellipse(R, cy, R, R))                  # the bar ends exactly on the outer circle
+    return p, SB_ROUND, SB_ROUND
 
 
 @glyph('U', 0x55)
@@ -193,7 +210,7 @@ def two_bowls(m, rxu, rxl, ryu=146):
 
 @glyph('S', 0x53)
 def S_(m):
-    rxu, rxl = 196, 210
+    rxu, rxl = 214, 230
     yu, ryu, yl, ryl = two_bowls(m, rxu, rxl)
     cx = rxl + m.h
     s = Skel().arc(cx, yu, rxu, ryu, 28, 270).arc(cx, yl, rxl, ryl, 90, -152)
@@ -210,24 +227,24 @@ def bowl(m, x0, ytop, ybot, right):
 
 @glyph('P', 0x50)
 def P_(m):
-    b, _ = bowl(m, m.h, m.top, 300, 540)
+    b, _ = bowl(m, m.h, m.top, 300, 575)
     p = union(rect(0, 0, m.W, CAP), b, fillet(m.W, CAP - m.W, 1, -1, m.r))
     return p, SB_STRAIGHT, SB_ROUND
 
 
 @glyph('R', 0x52)
 def R_(m):
-    b, xa = bowl(m, m.h, m.top, 320, 540)
+    b, xa = bowl(m, m.h, m.top, 320, 575)
     leg = band(line(xa - 70, 320, xa + 210, -40, m.W), 0, 320)
     p = union(rect(0, 0, m.W, CAP), b, leg, fillet(m.W, CAP - m.W, 1, -1, m.r))
-    p = slash_cut(p, xa + 150, 0, SLASH)
+    p = foot_slice(p, SLASH)
     return p, SB_STRAIGHT, SB_DIAG
 
 
 @glyph('R.ss01')
 def R_ss01(m):
     """The signature R: the leg becomes a long tail sweeping below the baseline to a hairline."""
-    b, xa = bowl(m, m.h, m.top, 320, 540)
+    b, xa = bowl(m, m.h, m.top, 320, 575)
     P = [(xa - 60, 320), (xa + 60, 150), (xa + 230, -150), (xa + 760, -170)]
 
     def c(t):
@@ -270,14 +287,14 @@ def R_ss01(m):
     tail.close()
     tail = band(tail, -400, 320)
     p = union(rect(0, 0, m.W, CAP), b, tail, fillet(m.W, CAP - m.W, 1, -1, m.r))
-    return p, SB_STRAIGHT, SB_DIAG, 540 + SB_DIAG     # explicit advance body: tail overhangs
+    return p, SB_STRAIGHT, SB_DIAG, 575 + SB_DIAG     # explicit advance body: tail overhangs
 
 
 @glyph('B', 0x42)
 def B_(m):
     ym = 372
-    up, _ = bowl(m, m.h, m.top, ym, 500)
-    lo, _ = bowl(m, m.h, ym, m.bot, 540)
+    up, _ = bowl(m, m.h, m.top, ym, 530)
+    lo, _ = bowl(m, m.h, ym, m.bot, 575)
     p = union(rect(0, 0, m.W, CAP), up, lo, fillet(m.W, CAP - m.W, 1, -1, m.r), fillet(m.W, m.W, 1, 1, m.r))
     return p, SB_STRAIGHT, SB_ROUND
 
@@ -309,12 +326,15 @@ def one(m):
 
 @glyph('two', 0x32)
 def two(m):
-    w = 520
-    r = 196
+    """Arc, then a straight diagonal leaving it tangentially, then the base bar."""
+    w = 530
+    r = 200
     cx, cy = w / 2, CAP + m.os - m.h - r
-    a = -38
-    ex, ey = cx + r * math.cos(math.radians(a)), cy + r * math.sin(math.radians(a))
-    s = Skel().arc(cx, cy, r, r, 168, a).line(m.h + 4, m.bot).line(w, m.bot)
+    ex, ey = m.h + 6, m.bot                      # where the diagonal lands
+    d = math.hypot(ex - cx, ey - cy)
+    base = math.atan2(ey - cy, ex - cx)
+    a = math.degrees(base + math.acos(r / d))    # tangent point on the right-hand side
+    s = Skel().arc(cx, cy, r, r, 165, a).line(ex, ey).line(w, m.bot)
     return s.stroke(m.W, miter=8), SB_ROUND, 30
 
 

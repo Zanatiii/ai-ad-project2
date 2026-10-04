@@ -53,3 +53,12 @@ Glyphs: A B C E F G H I K L N O P R S T U V W Y, R.ss01, 0–9, period, space.
 | 7 | top bar + a straight diagonal to (130,−120), clipped |
 | 8 | two stacked ellipse rings (rx 178/204, ry 146/160) |
 | . | W × W square |
+
+## Phase 1 revision: 2026-10-04
+Changes after the first review:
+- **A / V:** the apex is now a true point. The skeleton apex sits at CAP + overshoot − (W/2)/sin(half-angle), so the outer miter lands exactly at 712 (or −12 for the V). Width 660.
+- **Brand slash:** each '\' leg that lands on the baseline (A right leg, K lower leg, R leg) is now sliced clean through. The cut runs from the foot's inner baseline corner, rising at 52°. This replaces the small corner nick.
+- **G:** the arc now runs 42°→380°. The bar is centred on y=350 and runs from x = R+30; the arc is trimmed flush with the bar's top edge, and the whole glyph is clipped to its outer circle so the bar ends exactly on the curve.
+- **W:** pointed vertices built the same way as the A, with each leg spanning a quarter of the width (920). The middle apex stops below the cap height by construction.
+- **2:** the diagonal now leaves the arc (r=200) tangentially. The tangent point is computed from the landing point (W/2+6, W/2).
+- **Wider letters:** E 540, F 525, L 500, P/R bowl right edge 575, B 530/575, S rx 214/230.

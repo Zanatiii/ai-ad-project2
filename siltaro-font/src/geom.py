@@ -144,3 +144,13 @@ def hermite_side(f, df, t0, t1, n):
         h = (b - a) / 3
         segs.append((p0, (p0[0] + d0[0] * h, p0[1] + d0[1] * h), (p3[0] - d3[0] * h, p3[1] - d3[1] * h), p3))
     return segs
+
+
+def foot_slice(p, angle, which='right'):
+    """Slice the foot of a leg cleanly with the brand slash: the cut runs from the foot's
+    inner corner on the baseline, rising at `angle`, through the whole leg."""
+    strip = inter(p, rect(-5000, 0, 5000, 1))
+    comps = [c for c in strip.contours]
+    feet = sorted(((c.bounds[0], c.bounds[2]) for c in comps), key=lambda b: b[0])
+    x0, x1 = feet[-1] if which == 'right' else feet[0]
+    return slash_cut(p, x0, 0, angle)
