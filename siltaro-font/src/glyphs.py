@@ -121,12 +121,38 @@ def chevron(m, w, up=True, pointed=True):
     return translate(p, -b[0]), b[2] - b[0]
 
 
+def leg_edges(p, y):
+    """x-extents of each stroke crossing the horizontal line y."""
+    strip = inter(p, rect(-5000, y - 0.5, 5000, y + 0.5))
+    return sorted((c.bounds[0], c.bounds[2]) for c in strip.contours)
+
+
+def a_shape(m, bar=None, bar_y=250, gap=0):
+    """The pyramid A. bar=None: Λ with no crossbar. bar='full': crossbar leg to leg.
+    bar='open': crossbar leaves the left leg and stops `gap` short of the right one."""
+    p, w = chevron(m, 660, up=True)
+    if bar:
+        x0, _, x1, top = p.bounds
+        hull = poly((x0, 0), ((x0 + x1) / 2, top), (x1, 0))     # the A's outer triangle
+        if bar == 'full':
+            b = rect(x0, bar_y - m.h, x1, bar_y + m.h)
+        else:                                               # stop short of the right leg's inner edge
+            (_, _), (r0, _) = leg_edges(p, bar_y + m.h)
+            b = rect(x0, bar_y - m.h, r0 - gap, bar_y + m.h)
+        p = union(p, inter(b, hull))
+    # the right leg is a '\' landing on the baseline: sliced clean through by the brand slash
+    return foot_slice(p, SLASH)
+
+
 @glyph('A', 0x41)
 def A_(m):
-    p, w = chevron(m, 660, up=True)
-    # the right leg is a '\' landing on the baseline: sliced clean through by the brand slash
-    p = foot_slice(p, SLASH)
-    return p, SB_DIAG, SB_DIAG
+    return a_shape(m, 'full', 185), SB_DIAG, SB_DIAG
+
+
+@glyph('A.ss02')
+def A_ss02(m):
+    """Alternate: the pure pyramid Λ, no crossbar."""
+    return a_shape(m, None), SB_DIAG, SB_DIAG
 
 
 @glyph('V', 0x56)

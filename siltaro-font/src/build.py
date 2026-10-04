@@ -129,6 +129,8 @@ def feature_code(gl):
     lines.append('} kern;')
     if 'R.ss01' in gl:
         lines += ['feature ss01 {', '  featureNames { name "Tail R"; };', '  sub R by R.ss01;', '} ss01;']
+    if 'A.ss02' in gl:
+        lines += ['feature ss02 {', '  featureNames { name "Pyramid A (no crossbar)"; };', '  sub A by A.ss02;', '} ss02;']
     return '\n'.join(lines)
 
 
